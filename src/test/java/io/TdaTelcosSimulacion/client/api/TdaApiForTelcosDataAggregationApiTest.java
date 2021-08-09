@@ -1,154 +1,43 @@
-# tda-telcos-simulation-client-java
+package io.TdaTelcosSimulacion.client.api;
 
-This API simulates the aggregation of telcos data from a source.<br/><br><img src='https://developer.circulodecredito.com.mx/sites/default/files/2020-10/circulo_de_credito-apihub.png' height='40' width='220'/></p><br/>
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
-## Requirements
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.threeten.bp.OffsetDateTime;
 
-1. Java >= 1.7
-2. Maven >= 3.3
-## Installation
+import io.TdaTelcosSimulacion.client.ApiClient;
+import io.TdaTelcosSimulacion.client.ApiException;
+import io.TdaTelcosSimulacion.client.ApiResponse;
+import io.TdaTelcosSimulacion.client.model.AckSuccessTDAConsumption;
+import io.TdaTelcosSimulacion.client.model.AckTDARequest;
+import io.TdaTelcosSimulacion.client.model.AckTelcosDataAggregation;
+import io.TdaTelcosSimulacion.client.model.ConfigurationRequest;
+import io.TdaTelcosSimulacion.client.model.ConfigurationRequestDescriptions;
+import io.TdaTelcosSimulacion.client.model.ConfigurationRequestPrincipal;
+import io.TdaTelcosSimulacion.client.model.ConfigurationRequestTermsAndConditions;
+import io.TdaTelcosSimulacion.client.model.Icons;
+import io.TdaTelcosSimulacion.client.model.TelcosDataAggregation;
+import io.TdaTelcosSimulacion.client.model.TelcosDataAggregationConfiguration;
+import io.TdaTelcosSimulacion.client.model.TelcosDataAggregationConfigurationResponse;
+import io.TdaTelcosSimulacion.client.model.TelcosDataAggregationMetadata;
+import io.TdaTelcosSimulacion.helper.ECDHAlgCipher;
+import io.TdaTelcosSimulacion.helper.KeyHandler;
+import okhttp3.OkHttpClient;
 
-To install the dependencies, the following command must be executed:
-```shell
-mvn install -Dmaven.test.skip=true
-```
-## Getting started
-
-### Step 1. Generate key and certificate
-
-Before launching the test, you must have a keystore for the private key and the certificate associated with it. To generate the keystore, execute the instructions found in **src/main/security/createKeystore.sh** or with the following commands:
-
-**Optional**: If you want to encrypt your container, put a password in an environment variable.
-
-```shell
-export KEY_PASSWORD=your_super_secure_password
-```
-
-**Optional**: If you want to encrypt your keystore, put a password in an environment variable.
-
-```shell
-export KEYSTORE_PASSWORD=your_super_secure_keystore_password
-```
-
-- Definition of file names and aliases.
-
-```shell
-export PRIVATE_KEY_FILE=pri_key.pem
-export CERTIFICATE_FILE=certificate.pem
-export SUBJECT=/C=MX/ST=MX/L=MX/O=CDC/CN=CDC
-export PKCS12_FILE=keypair.p12
-export KEYSTORE_FILE=keystore.jks
-export ALIAS=cdc
-```
-- Generate key and certificate.
-
-```shell
-# Generate private key.
-openssl ecparam -name secp384r1 -genkey -out ${PRIVATE_KEY_FILE}
-
-# Generate public key
-openssl req -new -x509 -days 365 \
-  -key ${PRIVATE_KEY_FILE} \
-  -out ${CERTIFICATE_FILE} \
-  -subj "${SUBJECT}"
-
-```
-
-- Generate PKCS12 container from private key and certificate
-
-```shell
-# Generate PKCS12 container from private key and certificate
-# You will need to package your private key and certificate.
-
-openssl pkcs12 -name ${ALIAS} \
-  -export -out ${PKCS12_FILE} \
-  -inkey ${PRIVATE_KEY_FILE} \
-  -in ${CERTIFICATE_FILE} \
-  -password pass:${KEY_PASSWORD}
-
-```
-
-- Generate a dummy keystore and delete its content.
-
-```sh
-#Generate a Keystore with a pair of dummy keys.
-keytool -genkey -alias dummy -keyalg RSA \
-    -keysize 2048 -keystore ${KEYSTORE_FILE} \
-    -dname "CN=dummy, OU=, O=, L=, S=, C=" \
-    -storepass ${KEYSTORE_PASSWORD} -keypass ${KEY_PASSWORD}
-#Remove the dummy key pair.
-keytool -delete -alias dummy \
-    -keystore ${KEYSTORE_FILE} \
-    -storepass ${KEYSTORE_PASSWORD}
-```
-
-- Import the PKCS12 container to the keystore
-
-```sh
-#We import the PKCS12 container
-keytool -importkeystore -srckeystore ${PKCS12_FILE} \
-  -srcstoretype PKCS12 \
-  -srcstorepass ${KEY_PASSWORD} \
-  -destkeystore ${KEYSTORE_FILE} \
-  -deststoretype JKS -storepass ${KEYSTORE_PASSWORD} \
-  -alias ${ALIAS}
-#List the contents of the Kesystore to verify that
-keytool -list -keystore ${KEYSTORE_FILE} \
-  -storepass ${KEYSTORE_PASSWORD}
-```
-
-### Step 2.  Uploading the certificate within the developer portal
-
- 1. Login.
- 2. Click on the section "**Mis aplicaciones**".
- 3. Select the application.
- 4. Go to the tab "**Certificados para @tuApp**".
-    <p align="center">
-      <img src="https://github.com/APIHub-CdC/imagenes-cdc/blob/master/applications.png">
-    </p>
- 5. When the window opens, select the previously created certificate and click the button "**Cargar**":
-    <p align="center">
-      <img src="https://github.com/APIHub-CdC/imagenes-cdc/blob/master/upload_cert.png">
-    </p>
-
-### Step 3.  Download the Círculo de Crédito certificate within the developer portal
-
- 1. Login.
- 2. Click on the section "**Mis aplicaciones**".
- 3. Select the application.
- 4. Go to the tab "**Certificados para @tuApp**".
-    <p align="center">
-        <img src="https://github.com/APIHub-CdC/imagenes-cdc/blob/master/applications.png">
-    </p>
- 5. When the window opens, click the button "**Descargar**":
-    <p align="center">
-        <img src="https://github.com/APIHub-CdC/imagenes-cdc/blob/master/download_cert.png">
-    </p>
-
-### Step 4. Modify configuration file
-
-To make use of the certificate that was downloaded and the keystore that was created, the routes found in ***src/test/java/io/TdaTelcosSimulacion/client/api/TdaApiForTelcosDataAggregationApiTest.java***
-```properties
-	private String certFile = "/your_path_for_certificate_of_cdc/certificate.pem";
-	private String privateKeyPath = "/your_path_for_your_keystore/keystore.jks";
-	private String keystorePassword = "your_super_secure_keystore_password";
-	private String keyPassword = "your_super_secure_key_password";
-	private String keyAlias = "cdc";
-```
-### Step 5. Modify URL and request data
-
-In the WebHookSubscriptionsApiTest.java file, found at ***src/test/java/io/TdaTelcosSimulacion/client/api/TdaApiForTelcosDataAggregationApiTest.java***. The request and URL data for API consumption must be modified in setBasePath ("the_url"), as shown in the following code snippet with the corresponding data:
-
-
-> **NOTE:** The data in the following request is only representative.
-
-```java
 public class TdaApiForTelcosDataAggregationApiTest {
-
-	private final TdaApiForTelcosDataAggregationApi tda = new TdaApiForTelcosDataAggregationApi();
-	private Logger logger = LoggerFactory.getLogger(TdaApiForTelcosDataAggregationApiTest.class.getName());
-	private ApiClient apiClient = null;
-	private String xApiKey = "your_api_key";
+	
+    private final TdaApiForTelcosDataAggregationApi tda = new TdaApiForTelcosDataAggregationApi();
+    
+    private Logger logger = LoggerFactory.getLogger(TdaApiForTelcosDataAggregationApiTest.class.getName());
+    private ApiClient apiClient = null;
+    private String xApiKey = "your_api_key";
 	private String certFile = "/your_path_for_certificate_of_cdc/certificate.pem";
 	private String privateKeyPath = "/your_path_for_your_keystore/keystore.jks";
 	private String keystorePassword = "your_super_secure_keystore_password";
@@ -156,31 +45,37 @@ public class TdaApiForTelcosDataAggregationApiTest {
 	private String keyAlias = "cdc";
 	private UUID subscriptionId = UUID.fromString("uuid");
 	private UUID inquiryId = null;
-
+	
+	
 	@Before
 	public void setUp() {
-		this.apiClient = ada.getApiClient();
+		this.apiClient = tda.getApiClient();
 		this.apiClient.setBasePath("the_url");
 		OkHttpClient okHttpClient = new OkHttpClient().newBuilder().build();
 		apiClient.setHttpClient(okHttpClient);
 	}
-
+	
 	@Test
-	public void postTelcosDataAggregationTest() throws ApiException {
-		TelcosDataAggregation request = new TelcosDataAggregation();
+    public void postTelcosDataAggregationTest() throws ApiException {
+
+        TelcosDataAggregation request = new TelcosDataAggregation();
         AckTDARequest tdaResponse = null;
-		request.setRequestId(UUID.randomUUID());
+        
+        request.setRequestId(UUID.randomUUID());
         request.setSubscriptionId(subscriptionId);
         request.setCurp("MAHJ280603MSPRRV09");
-		tdaResponse = tda.postTelcosDataAggregation(xApiKey, request);
-
-		logger.debug(tdaResponse.toString());
+        
+         
+        tdaResponse = tda.postTelcosDataAggregation(xApiKey, request);
+        
+        logger.debug(tdaResponse.toString());
         Assert.assertNotNull(tdaResponse);
         inquiryId = tdaResponse.getInquiryId();
         logger.info(inquiryId.toString());
-
-		// List all the inquiryId available
-		String page = null;
+        
+        
+     // List all the inquiryId available
+ 		String page = null;
  		String perPage = null;
  		OffsetDateTime startAt = null;
  		OffsetDateTime endAt = null;
@@ -201,8 +96,9 @@ public class TdaApiForTelcosDataAggregationApiTest {
  		if (flag) {
  			logger.debug("inquiryId not found");
  		}
-
-		// Get inquiryId status
+ 		
+ 		
+ 	// Get inquiryId status
 		String xPublicKey = KeyHandler.getB64fromFile(certFile);
 		ApiResponse<AckSuccessTDAConsumption> rawResponse = tda.getInquiry(xApiKey, xPublicKey, "1955be51-61da-4415-bcc0-ff752c7a69c5");
 		AckSuccessTDAConsumption response = rawResponse.getData();
@@ -212,7 +108,7 @@ public class TdaApiForTelcosDataAggregationApiTest {
 		String iv = headers.get("x-iv").get(0);
 		String publicCDC = headers.get("x-public-key-cdc").get(0);
 
-
+		
 		try {
 			ECDHAlgCipher cipher = new ECDHAlgCipher(publicCDC, privateKeyPath, keystorePassword, keyPassword,
 					keyAlias);
@@ -221,8 +117,11 @@ public class TdaApiForTelcosDataAggregationApiTest {
 		} catch (IOException e) {
 			logger.error("Could not decrypt the payload field");
 		}
-	}
-
+		
+    
+    }
+	
+	
 	@Test
 	public void postConfTelcosDataAggregationTest() throws ApiException {
 		TelcosDataAggregationConfiguration request = new TelcosDataAggregationConfiguration();
@@ -261,23 +160,13 @@ public class TdaApiForTelcosDataAggregationApiTest {
 		AckTelcosDataAggregation response = tda.postConfTelcosDataAggregation(xApiKey, request);
 		logger.info(response.toString());
 	}
-
-	@Test
-	public void getConfTelcosDataAggregationTest() throws ApiException {
-		TelcosDataAggregationConfigurationResponse response = tda.getConfTelcosDataAggregation(xApiKey, subscriptionId);
-		logger.info(response.toString());
-	}
-
+	
+	
+    //@Test
+    public void getConfTelcosDataAggregationTest() throws ApiException {
+        
+        TelcosDataAggregationConfigurationResponse response = tda.getConfTelcosDataAggregation(xApiKey,subscriptionId);
+        logger.info(response.toString());
+    }
+    
 }
-
-```
-### Step 6. Run the unit test
-
-Having the previous steps, all that remains is to run the unit test, with the following command:
-```shell
-mvn test -Dmaven.install.skip=true
-```
-
-
----
-[TERMS AND CONDITIONS](https://github.com/APIHub-CdC/licencias-cdc)
